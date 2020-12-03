@@ -63,7 +63,7 @@ spec:
                   type: object
                   properties:
                     pod:
-                      description: The Pod property holds test configurations to verify the Pod kind
+                      description: The Pod property holds test_core configurations to verify the Pod kind
                         created by Helm release.
                       type: array
                       items:
@@ -78,7 +78,7 @@ spec:
                           status:
                             type: string
                             description: Holds the property for a pod status verification. If picking the 'Running' option,
-                              please ensure that your pod won't go to 'Succeeded' state since it will fail the test.
+                              please ensure that your pod won't go to 'Succeeded' state since it will fail the test_core.
                               If not specified we are expecting only NOT Failed status.
                             enum:
                               - "Running"
@@ -89,15 +89,15 @@ spec:
                               if not specified
                             type: string
                           timeout:
-                            description: The time equivalent in milliseconds to wait for Pod meet the test configuration
-                              for successful passing. If not specified the test will pass/fail as soon as all resources
+                            description: The time equivalent in milliseconds to wait for Pod meet the test_core configuration
+                              for successful passing. If not specified the test_core will pass/fail as soon as all resources
                               will be ready. If 'Running' specified with timeout option - it will be treated as 'Wait' and
                               the verification will be done after the time passes, If 'Running' specified without timeout option
-                              Pod test will wait for all the other tests to finish and then do verification for itself.
+                              Pod test_core will wait for all the other tests to finish and then do verification for itself.
                             type: integer
                             format: int64
                     configMap:
-                      description: The ConfigMap property holds test configurations to verify the ConfigMap kind
+                      description: The ConfigMap property holds test_core configurations to verify the ConfigMap kind
                         created by Helm release.
                       type: array
                       items:
@@ -184,31 +184,13 @@ spec:
                     - Failed
                     - ApplicationError
                 time:
-                  description: The elapsed time of the test run.
+                  description: The elapsed time of the test_core run.
                   type: string
-                verify:
-                  configMap:
-                    description: The ConfigMap property holds test results for a ConfigMap kind testing.
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        name:
-                          description: The Name of the ConfigMap. Required option.
-                          type: string
-                        result:
-                          description: The Name of the ConfigMap. Required option.
-                          type: string
-                          enum:
-                            - Created
-                            - Running
-                            - Passed
-                            - Failed
       additionalPrinterColumns:
         - jsonPath: .status.phase
           name: Phase
           type: string
-          description: Phase of the test.
+          description: Phase of the test_core.
         - jsonPath: .status.conditions[?(@.type=="Failed")].message
           name: Message
           type: string

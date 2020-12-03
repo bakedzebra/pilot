@@ -4,7 +4,7 @@ metadata:
   name: default-test
   namespace: default
 spec:
-  releaseName: podinfo
+  releaseName: test-release
   verify:
     configMap:
       - name: cf1

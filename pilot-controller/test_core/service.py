@@ -6,17 +6,13 @@ from kubernetes.client.rest import ApiException
 
 from datetime import datetime
 
+from service.pilot_service import PilotService
+
 
 config.load_kube_config()
 
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 log = logging.getLogger("pilot-service")
-
-pts_resource_config = {
-    "group": "ozhaw.io",
-    "version": "v1",
-    "plural": "pilottests"
-}
 
 helm_release_resource_config = {
     "group": "helm.fluxcd.io",
@@ -90,9 +86,9 @@ def update_test_phase(phase: Phase, name: str, namespace: str):
             namespace=namespace,
             name=name,
             body=pts_status_patch,
-            group=pts_resource_config["group"],
-            version=pts_resource_config["version"],
-            plural=pts_resource_config["plural"]
+            group=PilotService.crd_config.group,
+            version=PilotService.crd_config.version,
+            plural=PilotService.crd_config.plural
         )
 
         log.info(f'PilotTest {name} was updated with following status: {pts["status"]["phase"]}')
@@ -112,9 +108,9 @@ def add_test_condition(condition: Condition, name: str, namespace: str, message:
             namespace=namespace,
             name=name,
             body=pts_condition_patch,
-            group=pts_resource_config["group"],
-            version=pts_resource_config["version"],
-            plural=pts_resource_config["plural"]
+            group=PilotService.crd_config.group,
+            version=PilotService.crd_config.version,
+            plural=PilotService.crd_config.plural
         )
 
         log.info(f'PilotTest {name} was updated with following condition: {pts["status"]["conditions"]}')
