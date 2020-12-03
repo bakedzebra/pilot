@@ -1,0 +1,16 @@
+apiVersion: ozhaw.io/v1
+kind: PilotHelmTest
+metadata:
+  name: default-test
+  namespace: default
+spec:
+  releaseName: podinfo
+  verify:
+    configMap:
+      - name: cf1
+        namespace: default
+        data:
+          count: 1
+          includes:
+            - TEST1
+            - TEST2

@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.deployment.name }}
+  labels:
+    app: {{ .Values.deployment.name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.deployment.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.deployment.name }}
+    spec:
+      containers:
+        - name: registry
+          image: "{{ .Values.registry.image.url }}/{{ .Values.registry.image.name }}:{{ .Values.registry.image.version }}"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: {{ .Values.registry.containerPort }}
+          {{- template "pilot.registry.env_variables" . | nindent 10 }}
+          volumeMounts:
+            - mountPath: "{{ .Values.registry.app.env.storageRootDir }}"
+              name: charts-volume
+      volumes:
+        - name: charts-volume
+          emptyDir: {}

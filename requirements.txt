@@ -1,0 +1,4 @@
+setuptools~=50.3.2
+kopf~=0.28
+kubernetes~=9.0.0
+PyYAML~=5.3.1

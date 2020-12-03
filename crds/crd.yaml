@@ -1,0 +1,222 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: pilottests.ozhaw.io
+spec:
+  group: ozhaw.io
+  names:
+    kind: PilotHelmTest
+    listKind: PilotHelmTestList
+    plural: pilottests
+    singular: pilottest
+    shortNames:
+      - pt
+      - pts
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: { }
+      schema:
+        openAPIV3Schema:
+          description: HelmRelease is a type to represent a Helm release.
+          type: object
+          required:
+            - metadata
+            - spec
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation
+                   of an object. Servers should convert recognized schemas to the latest
+                   internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this
+                   object represents. Servers may infer this from the endpoint the client
+                   submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              required:
+                - releaseName
+                - verify
+              properties:
+                releaseName:
+                  description: Holds the name of the Helm release. Required.
+                  type: string
+                timeout:
+                  description: The time equivalent in milliseconds to wait the HelmRelease to be successfully deployed.
+                    If not specified will default to 10 seconds.
+                  type: integer
+                  format: int64
+                retries:
+                  description: The number of retries to call the HelmRelease status check. If not specified
+                    will try to wait endlessly with specified timeout between request. Max wait time for a release is
+                    timeout * retries.
+                  type: integer
+                  format: int64
+                verify:
+                  type: object
+                  properties:
+                    pod:
+                      description: The Pod property holds test configurations to verify the Pod kind
+                        created by Helm release.
+                      type: array
+                      items:
+                        type: object
+                        required:
+                          - name
+                        properties:
+                          name:
+                            description: The Name of the Pod. Since k8s generates a prefix for a pod name
+                              we will only search by the Starts With option. Required option.
+                            type: string
+                          status:
+                            type: string
+                            description: Holds the property for a pod status verification. If picking the 'Running' option,
+                              please ensure that your pod won't go to 'Succeeded' state since it will fail the test.
+                              If not specified we are expecting only NOT Failed status.
+                            enum:
+                              - "Running"
+                              - "Succeeded"
+                              - "Failed"
+                          namespace:
+                            description: The namespace which should hold the ConfigMap. Will default to release namespace
+                              if not specified
+                            type: string
+                          timeout:
+                            description: The time equivalent in milliseconds to wait for Pod meet the test configuration
+                              for successful passing. If not specified the test will pass/fail as soon as all resources
+                              will be ready. If 'Running' specified with timeout option - it will be treated as 'Wait' and
+                              the verification will be done after the time passes, If 'Running' specified without timeout option
+                              Pod test will wait for all the other tests to finish and then do verification for itself.
+                            type: integer
+                            format: int64
+                    configMap:
+                      description: The ConfigMap property holds test configurations to verify the ConfigMap kind
+                        created by Helm release.
+                      type: array
+                      items:
+                        type: object
+                        required:
+                          - name
+                        properties:
+                          name:
+                            description: The Name of the ConfigMap. Required option.
+                            type: string
+                          namespace:
+                            description: The namespace which should hold the ConfigMap. Will default to release namespace
+                              if not specified
+                            type: string
+                          data:
+                            type: object
+                            properties:
+                              count:
+                                description: The number of data entries specified in a ConfigMap.
+                                  If not specified the count verification will be skipped.
+                                type: integer
+                                format: int64
+                              includes:
+                                description: Array of names of the data entries in the ConfigMap.
+                                  If not specified the entries names verification will be skipped.
+                                type: array
+                                items:
+                                  type: string
+            status:
+              description: PilotTestStatus contains status information about an PilotTest.
+              type: object
+              properties:
+                conditions:
+                  description: Conditions contains observations of the resource's state,
+                    e.g., has the chart which it refers to been fetched.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - status
+                      - type
+                    properties:
+                      lastTransitionTime:
+                        description: LastTransitionTime is the timestamp corresponding
+                          to the last status change of this condition.
+                        type: string
+                        format: date-time
+                      lastUpdateTime:
+                        description: LastUpdateTime is the timestamp corresponding to
+                          the last status update of this condition.
+                        type: string
+                        format: date-time
+                      message:
+                        description: Message is a human readable description of the details
+                          of the last transition, complementing reason.
+                        type: string
+                      reason:
+                        description: Reason is a brief machine readable explanation for
+                          the condition's last transition.
+                        type: string
+                      status:
+                        description: Status of the condition, one of ('True', 'False',
+                          'Unknown').
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                      type:
+                        description: Type of the condition, one of ('Passed', 'Failed', 'Exported').
+                        type: string
+                        enum:
+                          - Passed
+                          - Failed
+                          - Exported
+                phase:
+                  description: Phase the release is in, one of ('Created', 'Running',
+                    'Passed', 'Failed', 'ApplicationError')
+                  type: string
+                  enum:
+                    - Created
+                    - Running
+                    - Passed
+                    - Failed
+                    - ApplicationError
+                time:
+                  description: The elapsed time of the test run.
+                  type: string
+                verify:
+                  configMap:
+                    description: The ConfigMap property holds test results for a ConfigMap kind testing.
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          description: The Name of the ConfigMap. Required option.
+                          type: string
+                        result:
+                          description: The Name of the ConfigMap. Required option.
+                          type: string
+                          enum:
+                            - Created
+                            - Running
+                            - Passed
+                            - Failed
+      additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+          description: Phase of the test.
+        - jsonPath: .status.conditions[?(@.type=="Failed")].message
+          name: Message
+          type: string
+        - jsonPath: .status.time
+          name: Run Time
+          type: string
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []

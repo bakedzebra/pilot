@@ -1,0 +1,10 @@
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: test-release
+  namespace: default
+spec:
+  chart:
+    repository: https://bakedzebra.github.io/charts
+    name: helm-pilot-test
+    version: 0.3.0

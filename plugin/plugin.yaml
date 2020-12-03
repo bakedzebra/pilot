@@ -1,0 +1,6 @@
+name: "pilot"
+version: "0.1.0"
+usage: "Please see for usage"
+description: |-
+  The HelmTest plugin allows to prepare env and launch your HelmRelease for testing.
+command: "py $HELM_PLUGIN_DIR/service.py"
