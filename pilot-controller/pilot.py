@@ -6,8 +6,6 @@ import logging
 from kubernetes import config
 from concurrent.futures import ThreadPoolExecutor
 
-import test_core.service
-
 config.load_kube_config()
 
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
@@ -16,12 +14,12 @@ log = logging.getLogger("pilot-pilot-controller")
 HELM_PHASES = {}
 executor = ThreadPoolExecutor()
 
+lock = asyncio.Lock()
+
 
 @kopf.on.event('helm.fluxcd.io', 'v1', 'helmreleases')
 async def on_helm_event(event, **_):
     if is_release_ready(event["object"]["status"]["phase"]):
-        lock = asyncio.Lock()
-
         async with lock:
             HELM_PHASES[event["object"]["metadata"]["name"]] = {
                 "namespace": event["object"]["metadata"]["namespace"],
@@ -43,7 +41,6 @@ async def test_created(spec, **kwargs):
     test_core.service.update_test_phase(test_core.service.Phase.Created, test_name, test_namespace)
 
     while retries is None or retries > 0:
-        lock = asyncio.Lock()
         helm_release_found = False
         async with lock:
             if release_name in HELM_PHASES \

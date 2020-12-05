@@ -3,14 +3,13 @@ import logging
 from kubernetes import config, client
 from kubernetes.client.rest import ApiException
 
-import test_core.service
+from service import PilotService, HelmReleaseService
 
 config.load_kube_config()
 
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 log = logging.getLogger("pilot-test_core-engine")
 log.setLevel(logging.INFO)
-
 
 # TODO: Add return of test_core result and message
 async def test_config_maps(config_map_config: dict, namespace: str, release_name: str):
@@ -21,9 +20,9 @@ async def test_config_maps(config_map_config: dict, namespace: str, release_name
     try:
         config_map = core_apiv1.read_namespaced_config_map(cf_name, cf_namespace)
 
-        if test_core.service.helm_release_annotation_name not in config_map.metadata.annotations \
-                or config_map.metadata.annotations[test_core.service.helm_release_annotation_name] \
-                != test_core.service.get_helm_release_annotation(namespace, release_name):
+        if HelmReleaseService.helm_release_annotation_name not in config_map.metadata.annotations \
+                or config_map.metadata.annotations[HelmReleaseService.helm_release_annotation_name] \
+                != HelmReleaseService.get_helm_release_annotation(namespace, release_name):
             # TODO: Add return of test_core result and message
             return False
         if 'data' in config_map_config and 'includes' in config_map_config['data'] \
@@ -46,8 +45,8 @@ async def test_config_maps(config_map_config: dict, namespace: str, release_name
 
 def get_helm_release(namespace: str, release_name: str):
     custom_object_api = client.CustomObjectsApi()
-    return custom_object_api.get_namespaced_custom_object(test_core.service.helm_release_resource_config["group"],
-                                                          test_core.service.helm_release_resource_config["version"],
+    return custom_object_api.get_namespaced_custom_object(HelmReleaseService.crd_config.group,
+                                                          HelmReleaseService.crd_config.version,
                                                           namespace,
-                                                          test_core.service.helm_release_resource_config["plural"],
+                                                          HelmReleaseService.crd_config.plural,
                                                           release_name)

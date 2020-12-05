@@ -5,7 +5,7 @@ from datetime import datetime
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 
-from test_core.service import PilotService
+from service import PilotService
 
 
 class KubernetesEvent(object):
