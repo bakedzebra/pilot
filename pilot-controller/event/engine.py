@@ -1,4 +1,6 @@
 import datetime
+import enum
+import logging
 import os
 
 from datetime import datetime
@@ -7,33 +9,56 @@ from kubernetes.client.rest import ApiException
 
 from service import PilotService
 
+logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
+
+
+class EventType(enum.Enum):
+    Normal = 1
+    Major = 2
+    Critical = 3
+
+
+class EventReason(str, enum.Enum):
+    ReleaseNotFound = 'Test_not_found'
+
+    TestCreated = 'Test_created_event'
+
+    ConfigMapTestStarted = 'ConfigMap_test_started'
+    ConfigMapTestFinished = 'ConfigMap_test_finished'
+    ConfigMapTestPassed = 'ConfigMap_test_passed'
+    ConfigMapTestFailed = 'ConfigMap_test_failed'
+
+
+class EventBody(object):
+    def __init__(self, reason: EventReason, event_type: EventType, message: str):
+        self.reason = reason
+        self.event_type = event_type
+        self.message = message
+
 
 class KubernetesEvent(object):
-    def __init__(self, log_entry: dict, namespace: str = None, component_name: str = None,
-                 test_version: str = None, test_uid: str = None):
+    def __init__(self, event_body: EventBody, namespace: str = None, component_name: str = None):
         self.namespace = namespace
         self.component_name = component_name
-        self.test_version = test_version
-        self.test_uid = test_uid
-
-        self.event_name = log_entry["event_name"]
-        self.message = log_entry["event_msg"]
-        self.event_type = log_entry["event_type"]
-        self.event_reason = log_entry["event_reason"]
+        self.__event_body = event_body
 
         self.host = os.environ.get('NODE_NAME', os.environ.get('HOSTNAME', 'UNKNOWN'))
 
         self.first_timestamp = datetime.utcnow().isoformat()[:-3] + 'Z'
         self.last_timestamp = datetime.utcnow().isoformat()[:-3] + 'Z'
 
+        self.service = PilotService()
+
     @property
     def event_body(self):
-        obj_meta = client.V1ObjectMeta(generate_name="{}".format(self.event_name))
+        test = self.service.get_test(self.component_name, self.namespace)
+
+        obj_meta = client.V1ObjectMeta(generate_name="{}".format(self.__event_body.reason.value))
         obj_ref = client.V1ObjectReference(kind=PilotService.crd_config.kind,
                                            api_version=PilotService.crd_config.get_full_api_version(),
                                            name=self.component_name,
-                                           resource_version=self.test_version,
-                                           uid=self.test_uid,
+                                           resource_version=test['metadata']['resourceVersion'],
+                                           uid=test['metadata']['uid'],
                                            namespace=self.namespace)
 
         event_source = client.V1EventSource(component=self.component_name)
@@ -41,27 +66,26 @@ class KubernetesEvent(object):
         return client.V1Event(
             involved_object=obj_ref,
             metadata=obj_meta,
-            message=self.message,
+            message=self.__event_body.message,
             count=1,
-            type=self.event_type,
-            reason=self.event_reason,
+            type=self.__event_body.event_type.name,
+            reason=self.__event_body.reason.name,
             source=event_source,
             first_timestamp=self.first_timestamp,
             last_timestamp=self.last_timestamp)
 
 
-if __name__ == '__main__':
-    config.load_kube_config()
+class EventService(object):
+    def __init__(self):
+        config.load_kube_config()
 
-    v1 = client.CoreV1Api()
-    log = {
-        "event_name": "TestCreatedEvent",
-        "event_msg": "test_core was created",
-        "event_type": "Normal",
-        "event_reason": "TestCreated"
-    }
-    try:
-        obj = v1.create_namespaced_event("default", KubernetesEvent(log, "default", "default-test_core").event_body)
-        print(obj)
-    except ApiException as e:
-        print(e)
+        self.api = client.CoreV1Api()
+
+        self.log = logging.getLogger("EventService")
+        self.log.setLevel(logging.INFO)
+
+    def send(self, event: KubernetesEvent):
+        try:
+            self.api.create_namespaced_event(event.namespace, event.event_body)
+        except ApiException as e:
+            self.log.error("Exception when calling CoreV1Api->create_namespaced_event: %s\n" % e)

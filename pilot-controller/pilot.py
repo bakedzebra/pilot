@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from service import PilotService, Phase, Resource
 from core import ConfigMapTestSuite
+from event import KubernetesEvent, EventService, EventBody, EventReason, EventType
 
 config.load_kube_config()
 
@@ -41,6 +42,7 @@ async def test_created(spec, **kwargs):
     retries = spec["retries"] if "retries" in spec else None
 
     service = PilotService()
+    events = EventService()
 
     log.info(f"The PilotTest was created with name: {test_name} in namespace: {test_namespace}.")
 
@@ -62,7 +64,12 @@ async def test_created(spec, **kwargs):
     if helm_release_found:
         future = executor.submit(run_test, spec, test_namespace, release_name, test_name, service)
     else:
-        log.info(f"Cannot find release: {release_name} for specified timeout. Failing the test")
+        log.info(f"Cannot find release: `{release_name}` for specified timeout. Failing the test")
+        service.update_test_phase(Phase.Failed, test_name, test_namespace)
+
+        event = EventBody(EventReason.ReleaseNotFound, EventType.Critical, f'Release named `{release_name}` '
+                                                                           f'was not found. Unable to start test.')
+        events.send(KubernetesEvent(event, test_namespace, test_name))
 
 
 def is_release_ready(phase: str = None):
@@ -71,5 +78,8 @@ def is_release_ready(phase: str = None):
 
 def run_test(spec: dict, namespace: str, release_name: str, test_name: str, service: PilotService):
     service.initiate_results(test_name, namespace)
+
+    service.update_test_phase(Phase.Running, test_name, namespace)
+
     if Resource.ConfigMap in spec["verify"]:
-        ConfigMapTestSuite().run(spec["verify"][Resource.ConfigMap], namespace, release_name, test_name)
+        suite_result = ConfigMapTestSuite().run(spec["verify"][Resource.ConfigMap], namespace, release_name, test_name)

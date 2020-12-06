@@ -1,1 +1,1 @@
-from .exceptions import HelmReleaseUnavailableException, ConfigMapNotFoundException
+from .exceptions import ResourceNotFoundException
