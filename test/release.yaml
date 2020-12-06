@@ -7,4 +7,4 @@ spec:
   chart:
     repository: https://bakedzebra.github.io/charts
     name: helm-pilot-test
-    version: 0.3.0
+    version: 0.5.0

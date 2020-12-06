@@ -22,7 +22,8 @@ lock = asyncio.Lock()
 
 @kopf.on.event('helm.fluxcd.io', 'v1', 'helmreleases')
 async def on_helm_event(event, **_):
-    if is_release_ready(event["object"]["status"]["phase"]):
+    if 'status' in event["object"] and 'phase' in event["object"]["status"] and \
+            is_release_ready(event["object"]["status"]["phase"]):
         async with lock:
             HELM_PHASES[event["object"]["metadata"]["name"]] = {
                 "namespace": event["object"]["metadata"]["namespace"],
@@ -51,7 +52,6 @@ async def test_created(spec, **kwargs):
             if release_name in HELM_PHASES \
                     and HELM_PHASES[release_name]["namespace"] == kwargs["body"]["metadata"]["namespace"] \
                     and HELM_PHASES[release_name]["ready"]:
-
                 log.info(f"Found release: {release_name} and starting tests!")
                 helm_release_found = True
                 break

@@ -165,36 +165,22 @@ class PilotService(object):
         except ApiException as e:
             self.log.error("Exception when calling CustomObjectsApi->patch_namespaced_custom_object: %s\n" % e)
 
-    def update_result(self, test_result: TestResult, name: str, namespace: str, resource_type: str, resource_name: str):
-        self.log.info(f"Updating test result into: {test_result.passed} for test: {name}")
+    def update_result(self, test_results: list, name: str, namespace: str, resource_type: Resource):
+        self.log.info(f"Updating test result into: {resource_type} for test: {name}")
 
-        try:
-            resources = self.get_test(name, namespace)["results"][resource_type]
-
-            if any(resource.name == resource_name for resource in resources):
-                for resource in resources:
-                    if resource["name"] == resource_name:
-                        if 'passed' not in resource:
-                            resource["passed"] = test_result.passed
-
-                        if 'messages' not in resource:
-                            resource["messages"] = [test_result.message]
-                        else:
-                            resource["messages"].append(test_result.message)
-                        break
-            else:
-                resources.append({
-                    'name': resource_name,
-                    'passed': test_result.passed,
-                    'messages': [test_result.message]
+        print({
+                    'results': {
+                        resource_type.value: test_results
+                    }
                 })
 
+        try:
             self.api.patch_namespaced_custom_object(
                 namespace=namespace,
                 name=name,
                 body={
                     'results': {
-                        resource_type: resources
+                        resource_type.value: test_results
                     }
                 },
                 group=self.crd_config.group,
@@ -202,7 +188,7 @@ class PilotService(object):
                 plural=self.crd_config.plural
             )
 
-            self.log.info(f'PilotTest {name} was updated')
+            self.log.info(f'Test: {name} resource {resource_type} was updated')
         except ApiException as e:
             self.log.error("Exception when calling CustomObjectsApi->patch_namespaced_custom_object: %s\n" % e)
 
