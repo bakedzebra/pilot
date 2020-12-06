@@ -22,3 +22,11 @@ class HelmReleaseService(object):
 
         self.log = logging.getLogger("HelmReleaseService")
         self.log.setLevel(logging.INFO)
+
+    def get_helm_release(self, namespace: str, release_name: str):
+        custom_object_api = client.CustomObjectsApi()
+        return custom_object_api.get_namespaced_custom_object(self.crd_config.group,
+                                                              self.crd_config.version,
+                                                              namespace,
+                                                              self.crd_config.plural,
+                                                              release_name)

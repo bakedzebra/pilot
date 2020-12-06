@@ -186,6 +186,31 @@ spec:
                 time:
                   description: The elapsed time of the test_core run.
                   type: string
+            results:
+              description: Holds the results of the tests.
+              type: object
+              properties:
+                configMap:
+                  description: The ConfigMap property holds test_core configurations to verify the ConfigMap kind
+                    created by Helm release.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                    properties:
+                      name:
+                        description: The Name of the ConfigMap. Required option.
+                        type: string
+                      passed:
+                        description: Defines if test passed or failed.
+                        type: boolean
+                      messages:
+                        description: Defines the list of validation messages.
+                        type: array
+                        items:
+                          type: string
+
       additionalPrinterColumns:
         - jsonPath: .status.phase
           name: Phase

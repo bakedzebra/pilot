@@ -7,10 +7,11 @@ spec:
   releaseName: test-release
   verify:
     configMap:
-      - name: cf1
+      - name: success-config
         namespace: default
         data:
-          count: 1
+          count: 3
           includes:
-            - TEST1
-            - TEST2
+            - type
+            - message
+            - success

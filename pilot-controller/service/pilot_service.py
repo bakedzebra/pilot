@@ -8,6 +8,28 @@ from kubernetes.client.rest import ApiException
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
 
+class TestResult(object):
+    def __init__(self, passed: bool, reason: str, message: str):
+        self.__passed = passed
+        self.__reason = reason
+        self.__message = message
+
+    @property
+    def passed(self):
+        return self.__passed
+
+    @property
+    def reason(self):
+        return self.__reason
+
+    @property
+    def message(self):
+        return self.__message
+
+    def to_readable(self):
+        return f'Test {"passed" if self.passed else "failed"} with reason {self.reason} and message {self.message}'
+
+
 class ResourceConfig(object):
     def __init__(self, group: str = None, version: str = None, plural: str = None, kind: str = None):
         self.__group = group
@@ -58,10 +80,32 @@ class Condition(enum.Enum):
         return self.name
 
 
+class Resource(str, enum.Enum):
+    ConfigMap = 'configMap'
+    Pod = 'pod'
+
+
 def get_status_phase(phase: Phase):
     return {
         'status': {
             'phase': phase.get_phase_name
+        }
+    }
+
+
+def get_condition(condition_name: Condition, message: str, reason: str, status: bool):
+    return {
+        'status': {
+            'conditions': [
+                {
+                    "type": condition_name.get_condition_name,
+                    "last_probe_time": datetime.now(),
+                    "last_transition_time": datetime.now(),
+                    "message": message,
+                    "reason": reason,
+                    "status": ("False", "True")[status]
+                }
+            ]
         }
     }
 
@@ -93,6 +137,74 @@ class PilotService(object):
 
         self.log = logging.getLogger("PilotService")
         self.log.setLevel(logging.INFO)
+
+    def initiate_results(self, name: str, namespace: str):
+        self.log.info("Initiating test result statuses")
+        try:
+            test = self.get_test(name, namespace)
+
+            if 'results' not in test:
+                self.log.info(f'Results were not found. Creating new')
+                resources = {}
+                for key in test["spec"]["verify"]:
+                    resources[key] = []
+
+                self.api.patch_namespaced_custom_object(
+                    namespace=namespace,
+                    name=name,
+                    body={
+                        'results': resources
+                    },
+                    group=self.crd_config.group,
+                    version=self.crd_config.version,
+                    plural=self.crd_config.plural
+                )
+
+            self.log.info(f'Test result resources were initiated')
+
+        except ApiException as e:
+            self.log.error("Exception when calling CustomObjectsApi->patch_namespaced_custom_object: %s\n" % e)
+
+    def update_result(self, test_result: TestResult, name: str, namespace: str, resource_type: str, resource_name: str):
+        self.log.info(f"Updating test result into: {test_result.passed} for test: {name}")
+
+        try:
+            resources = self.get_test(name, namespace)["results"][resource_type]
+
+            if any(resource.name == resource_name for resource in resources):
+                for resource in resources:
+                    if resource["name"] == resource_name:
+                        if 'passed' not in resource:
+                            resource["passed"] = test_result.passed
+
+                        if 'messages' not in resource:
+                            resource["messages"] = [test_result.message]
+                        else:
+                            resource["messages"].append(test_result.message)
+                        break
+            else:
+                resources.append({
+                    'name': resource_name,
+                    'passed': test_result.passed,
+                    'messages': [test_result.message]
+                })
+
+            self.api.patch_namespaced_custom_object(
+                namespace=namespace,
+                name=name,
+                body={
+                    'results': {
+                        resource_type: resources
+                    }
+                },
+                group=self.crd_config.group,
+                version=self.crd_config.version,
+                plural=self.crd_config.plural
+            )
+
+            self.log.info(f'PilotTest {name} was updated')
+        except ApiException as e:
+            self.log.error("Exception when calling CustomObjectsApi->patch_namespaced_custom_object: %s\n" % e)
 
     def update_test_phase(self, phase: Phase, name: str, namespace: str):
         self.log.info(f"Updating test phase into: {phase.get_phase_name} for test: {name}")
@@ -132,3 +244,14 @@ class PilotService(object):
             self.log.info(f'PilotTest {name} was updated with following condition: {pts["status"]["conditions"]}')
         except ApiException as e:
             self.log.error("Exception when calling CustomObjectsApi->patch_namespaced_custom_object_status: %s\n" % e)
+
+    def get_test(self, name: str, namespace: str):
+        self.log.info(f"Searching for test: {name} in namespace: {namespace}")
+
+        test = self.api.get_namespaced_custom_object(self.crd_config.group,
+                                                     self.crd_config.version,
+                                                     namespace,
+                                                     self.crd_config.plural,
+                                                     name)
+
+        return test
