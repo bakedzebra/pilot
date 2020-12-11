@@ -1,4 +1,4 @@
-apiVersion: ozhaw.io/v1
+apiVersion: pilot.ozhaw.io/v1
 kind: PilotHelmTest
 metadata:
   name: default-test

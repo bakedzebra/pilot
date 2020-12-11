@@ -54,8 +54,8 @@ class KubernetesEvent(object):
         test = self.service.get_test(self.component_name, self.namespace)
 
         obj_meta = client.V1ObjectMeta(generate_name="{}".format(self.__event_body.reason.value))
-        obj_ref = client.V1ObjectReference(kind=PilotService.crd_config.kind,
-                                           api_version=PilotService.crd_config.get_full_api_version(),
+        obj_ref = client.V1ObjectReference(kind=PilotService.test_crd_config.kind,
+                                           api_version=PilotService.test_crd_config.get_full_api_version(),
                                            name=self.component_name,
                                            resource_version=test['metadata']['resourceVersion'],
                                            uid=test['metadata']['uid'],

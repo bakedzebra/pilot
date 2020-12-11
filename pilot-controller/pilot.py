@@ -6,7 +6,7 @@ import logging
 from kubernetes import config
 from concurrent.futures import ThreadPoolExecutor
 
-from service import PilotService, Phase, Resource
+from service import HelmReleaseService, PilotService, Phase, Resource
 from core import ConfigMapTestSuite
 from event import KubernetesEvent, EventService, EventBody, EventReason, EventType
 
@@ -21,7 +21,7 @@ executor = ThreadPoolExecutor()
 lock = asyncio.Lock()
 
 
-@kopf.on.event('helm.fluxcd.io', 'v1', 'helmreleases')
+@kopf.on.event(HelmReleaseService.crd_config.group, HelmReleaseService.crd_config.version, HelmReleaseService.crd_config.kind)
 async def on_helm_event(event, **_):
     if 'status' in event["object"] and 'phase' in event["object"]["status"] and \
             is_release_ready(event["object"]["status"]["phase"]):
@@ -32,7 +32,7 @@ async def on_helm_event(event, **_):
             }
 
 
-@kopf.on.create('ozhaw.io', 'v1', 'pilottests')
+@kopf.on.create(PilotService.test_crd_config.group, PilotService.test_crd_config.version, PilotService.test_crd_config.kind)
 async def test_created(spec, **kwargs):
     test_name = kwargs["body"]["metadata"]["name"]
     test_namespace = kwargs["body"]["metadata"]["namespace"]
@@ -47,6 +47,9 @@ async def test_created(spec, **kwargs):
     log.info(f"The PilotTest was created with name: {test_name} in namespace: {test_namespace}.")
 
     service.update_test_phase(Phase.Created, test_name, test_namespace)
+    suite_id = service.post_single_suite_for_test(test_name, test_namespace)
+
+    log.info(f"Created single suite for test: {test_name} in namespace: {test_namespace} with id: {suite_id}.")
 
     helm_release_found = False
     while retries is None or retries > 0:

@@ -2,6 +2,7 @@ import enum
 import logging
 from datetime import datetime
 
+import yaml
 from kubernetes import config, client
 from kubernetes.client.rest import ApiException
 
@@ -130,7 +131,8 @@ def get_condition(condition_name: Condition, message: str, reason: str, status: 
 
 
 class PilotService(object):
-    crd_config = ResourceConfig("ozhaw.io", "v1", "pilottests", "PilotHelmTest")
+    test_crd_config = ResourceConfig("pilot.ozhaw.io", "v1", "pilottests", "PilotHelmTest")
+    suite_crd_config = ResourceConfig("pilot.ozhaw.io", "v1", "pilotsuites", "PilotHelmSuite")
 
     def __init__(self):
         config.load_kube_config()
@@ -157,9 +159,9 @@ class PilotService(object):
                     body={
                         'results': resources
                     },
-                    group=self.crd_config.group,
-                    version=self.crd_config.version,
-                    plural=self.crd_config.plural
+                    group=self.test_crd_config.group,
+                    version=self.test_crd_config.version,
+                    plural=self.test_crd_config.plural
                 )
 
             self.log.info(f'Test result resources were initiated')
@@ -179,9 +181,9 @@ class PilotService(object):
                         resource_type.value: test_results
                     }
                 },
-                group=self.crd_config.group,
-                version=self.crd_config.version,
-                plural=self.crd_config.plural
+                group=self.test_crd_config.group,
+                version=self.test_crd_config.version,
+                plural=self.test_crd_config.plural
             )
 
             self.log.info(f'Test `{name}` for resource `{resource_type}` was updated')
@@ -198,9 +200,9 @@ class PilotService(object):
                 namespace=namespace,
                 name=name,
                 body=pts_status_patch,
-                group=self.crd_config.group,
-                version=self.crd_config.version,
-                plural=self.crd_config.plural
+                group=self.test_crd_config.group,
+                version=self.test_crd_config.version,
+                plural=self.test_crd_config.plural
             )
 
             self.log.info(f'PilotTest `{name}` was updated with following status: `{pts["status"]["phase"]}`')
@@ -218,9 +220,9 @@ class PilotService(object):
                 namespace=namespace,
                 name=name,
                 body=pts_condition_patch,
-                group=self.crd_config.group,
-                version=self.crd_config.version,
-                plural=self.crd_config.plural
+                group=self.test_crd_config.group,
+                version=self.test_crd_config.version,
+                plural=self.test_crd_config.plural
             )
 
             self.log.info(f'PilotTest `{name}` was updated with following condition: `{pts["status"]["conditions"]}`')
@@ -229,16 +231,32 @@ class PilotService(object):
 
     def get_test(self, name: str, namespace: str):
         try:
-            return self.api.get_namespaced_custom_object(self.crd_config.group,
-                                                         self.crd_config.version,
+            return self.api.get_namespaced_custom_object(self.test_crd_config.group,
+                                                         self.test_crd_config.version,
                                                          namespace,
-                                                         self.crd_config.plural,
+                                                         self.test_crd_config.plural,
                                                          name)
         except ApiException as e:
             self.log.error("Exception when calling CustomObjectsApi->get_namespaced_custom_object: %s\n" % e)
-            raise ResourceNotFoundException(namespace, name, PilotService.crd_config.kind)
+            raise ResourceNotFoundException(namespace, name, PilotService.test_crd_config.kind)
 
     def get_test_phase(self, name: str, namespace: str):
         test = self.get_test(name, namespace)
 
         return Phase[test["status"]["phase"]]
+
+    def post_single_suite_for_test(self, name: str, namespace: str):
+        doc = yaml.safe_load(f"""
+                apiVersion: pilot.ozhaw.io/v1
+                kind: PilotHelmSuite
+                metadata:
+                  name: {name}
+                  namespace: {namespace}
+            """)
+
+        try:
+            suite = self.api.create_namespaced_custom_object(namespace=namespace, body=doc)
+
+            return suite.metadata.uid
+        except ApiException as e:
+            self.log.error("Exception when calling CustomObjectsApi->create_namespaced_custom_object: %s\n" % e)

@@ -1,17 +1,17 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: pilottests.ozhaw.io
+  name: pilottests.pilot.ozhaw.io
 spec:
-  group: ozhaw.io
+  group: pilot.ozhaw.io
   names:
     kind: PilotHelmTest
     listKind: PilotHelmTestList
     plural: pilottests
     singular: pilottest
     shortNames:
-      - pt
-      - pts
+      - ptts
+      - ptt
   scope: Namespaced
   versions:
     - name: v1
@@ -221,6 +221,131 @@ spec:
           type: string
         - jsonPath: .status.time
           name: Run Time
+          type: string
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: pilotsuites.pilot.ozhaw.io
+spec:
+  group: pilot.ozhaw.io
+  names:
+    kind: PilotHelmSuite
+    listKind: PilotHelmSuiteList
+    plural: pilotsuites
+    singular: pilotsuite
+    shortNames:
+      - pts
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: { }
+      schema:
+        openAPIV3Schema:
+          description: HelmRelease is a type to represent a Helm release.
+          type: object
+          required:
+            - metadata
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation
+                   of an object. Servers should convert recognized schemas to the latest
+                   internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this
+                   object represents. Servers may infer this from the endpoint the client
+                   submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              properties:
+                export:
+                  description: Check if test run report should be saved and available for retrieval.
+                  type: boolean
+            status:
+              description: PilotHelmSuite contains status information about an PilotTest set.
+              type: object
+              properties:
+                conditions:
+                  description: Conditions contains observations of the resource's state,
+                    e.g., has the chart which it refers to been fetched.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - status
+                      - type
+                    properties:
+                      lastTransitionTime:
+                        description: LastTransitionTime is the timestamp corresponding
+                          to the last status change of this condition.
+                        type: string
+                        format: date-time
+                      lastUpdateTime:
+                        description: LastUpdateTime is the timestamp corresponding to
+                          the last status update of this condition.
+                        type: string
+                        format: date-time
+                      message:
+                        description: Message is a human readable description of the details
+                          of the last transition, complementing reason.
+                        type: string
+                      reason:
+                        description: Reason is a brief machine readable explanation for
+                          the condition's last transition.
+                        type: string
+                      status:
+                        description: Status of the condition, one of ('True', 'False',
+                          'Unknown').
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                      type:
+                        description: Type of the condition, one of ('Passed', 'Failed', 'Exported').
+                        type: string
+                        enum:
+                          - Passed
+                          - Failed
+                          - Exported
+                phase:
+                  description: Phase the release is in, one of ('Created', 'Running',
+                    'Passed', 'Failed', 'ApplicationError')
+                  type: string
+                  enum:
+                    - Created
+                    - Running
+                    - Passed
+                    - Failed
+                time:
+                  description: The elapsed time of the test_core run.
+                  type: string
+      additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+          description: Phase of the test_core.
+        - jsonPath: .status.conditions[?(@.type=="Failed")].message
+          name: Message
+          type: string
+        - jsonPath: .status.time
+          name: Run Time
+          type: string
+        - jsonPath: .metadata.exportedReportId
+          name: Id of exported report
           type: string
 status:
   acceptedNames:
